@@ -22,7 +22,7 @@ positional arguments:
 CNP default="./caffemodel/test/test.prototxt"  
 CMP default="./caffemodel/test/test.caffemodel"  
 ON default="test"  
-OSP default="./caffe2onnx2.0/onnxmodel/"  
+OSP default="./onnxmodel/"  
 ## 现在支持的算子 Current Support Operator  
 BatchNorm  
 Convolution  
