@@ -12,8 +12,8 @@ caffe model convert to onnx model
 usage: convert2onnx.py [-h] [CNP] [CMP] [ON] [OSP]
 
 positional arguments:
-  CNP         caffe's caffemodel file path
-  CMP         caffe's prototxt file path
+  CNP         caffe's prototxt file path
+  CMP         caffe's caffemodel file path
   ON          onnx model name
   OSP         onnx model file saved path
 
