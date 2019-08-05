@@ -21,7 +21,7 @@ def loadonnxmodel(onnx_path):
 def saveonnxmodel(onnxmodel,onnx_save_path):
     try:
         onnx.checker.check_model(onnxmodel)
-        onnx.save_model(onnxmodel, onnx_save_path+".onnx")
-        print("3.模型保存成功,已保存至"+onnx_save_path+".onnx")
+        onnx.save_model(onnxmodel, onnx_save_path)
+        print("3.模型保存成功,已保存至"+onnx_save_path)
     except Exception as e:
         print("3.模型存在问题,未保存成功:\n",e)

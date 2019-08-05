@@ -1,3 +1,4 @@
+import os
 import argparse
 from src.load_save_model import *
 from src.caffe2onnx import *
@@ -14,11 +15,12 @@ def main():
     ModelPath = args.CMP
     OnnxName = args.ON
     OnnxSavePath = args.OSP
+    os.makedirs(OnnxSavePath, exist_ok=True)
 
     net,model = loadcaffemodel(NetPath,ModelPath)
     c2o = Caffe2Onnx(net,model,OnnxName)
     onnxmodel = c2o.createOnnxModel()
-    saveonnxmodel(onnxmodel,OnnxSavePath+OnnxName)
+    saveonnxmodel(onnxmodel, os.path.join(OnnxSavePath, OnnxName+'.onnx'))
 
 
 if __name__ == '__main__':
