@@ -73,8 +73,28 @@ class Caffe2Onnx():
 
         #以上情况都不是,则该caffe模型没有输入,存在问题
         else:
-            print("error:the caffe model has no input")
-            return -1
+            raise ValueError("the caffe model has no input")
+
+
+    # 得到layer的参数shape
+    def __getParamsShapeandData(self, layer):
+        ParamShape = []
+        ParamData = []
+        #根据这个layer名找出对应的caffemodel中的参数
+        for model_layer in self.__ModelLayer:
+            if layer.name == model_layer.name:
+                Params = copy.deepcopy(model_layer.blobs)
+                ParamShape = [p.shape.dim for p in Params]
+                ParamData = [p.data for p in Params]
+                if layer.type == "BatchNorm" or layer.type == "BN": 
+                    if len(ParamShape) == 3:  
+                        # 如果是bn层，则不用最后一层的滑动系数
+                        ParamShape = ParamShape[:-1]
+                        ParamData = ParamData[:-1]
+                    elif len(ParamShape) == 2 and len(ParamShape[0]) != 1:
+                        ParamShape = [[ParamShape[0][1]], [ParamShape[1][1]]]
+                        ParamData = ParamData
+        return ParamShape, ParamData
 
 
 
@@ -89,9 +109,18 @@ class Caffe2Onnx():
                 Params = copy.deepcopy(model_layer.blobs)
                 ParamShape = [p.shape.dim for p in Params]
                 ParamData = [p.data for p in Params]
-                if layer.type == "BatchNorm":
-                    ParamShape = ParamShape[0:len(ParamShape) - 1]
-                    ParamData = ParamData[0:len(ParamData) - 1]
+                if layer.type == "BatchNorm" or layer.type == "BN":
+                    if len(ParamShape) == 3:
+                        # 如果是bn层，params为[mean, var, s]，则需要把mean和var除以滑动系数s
+                        ParamShape = ParamShape[:-1]
+                        ParamData = [[q/(Params[-1].data[0]) for q in p.data] if i==0 else [q/(Params[-1].data[0] + 1e-5) for q in p.data] for i,p in enumerate(Params[:-1])]  # with s
+                    elif len(ParamShape) == 2 and len(ParamShape[0]) == 4:
+                        ParamShape = [[ParamShape[0][1]], [ParamShape[1][1]]]
+                        ParamData = [[q/1. for q in p.data] if i==0 else [q/(1. + 1e-5) for q in p.data] for i,p in enumerate(Params)]
+
+                    # comment it for tvm because tvm use broadcast at prelu layer
+                    elif layer.type == "PReLU":
+                        ParamShape = [[1, ParamShape[0][0], 1, 1]]
                 break
 
 
@@ -107,6 +136,8 @@ class Caffe2Onnx():
                 self.onnxmodel.addInputsTVI(p_tvi)
                 self.onnxmodel.addInitTensor(p_t)
                 print("添加参数" + ParamName[i] + "输入信息和tensor数据")
+        if layer.type == "BatchNorm" or layer.type == "BN" or layer.type == "Scale":
+            return ParamName, ParamShape
         return ParamName
 
     #手动将参数添加到输入信息中,并生成tensor存储数据
@@ -126,23 +157,47 @@ class Caffe2Onnx():
     def __getLastLayerOutNameAndShape(self,layer):
         outname = []
         outshape = []
+
+        # 如果结点列表为空，或者当前层的bottom在input_name中，那么上一层输入一定是 Input
         if self.NodeList == []:
-            outname = self.model_input_name
-            outshape = self.model_input_shape
+            outname += self.model_input_name
+            outshape += self.model_input_shape
+
         else:
             for i in range(len(layer.bottom)):
+                for j in range(len(self.model_input_name)):
+                    if layer.bottom[i] + '_input' == self.model_input_name[j]:
+                        outname.append(self.model_input_name[j])
+                        outshape.append(self.model_input_shape[j])
+
+                # 因为prototxt中存在top和bottom同名的情况，但是layer.bottom只能对应一个node，所以对每个layer.bottom，找到最末的那个同名节点作为上一层节点
+                name = None
+                shape = None
                 for node in self.NodeList:
-                    for j in range(len(node.top)):
+                    for j in range(len(node.top) if node.node.op_type != "MaxPool" else 1):   # comment if statement for original maxpool and maxunpool
                         if layer.bottom[i] == node.top[j]:
                             name = node.outputs_name[j]
                             shape = node.outputs_shape[j]
-                outname.append(name)
-                outshape.append(shape)
-        return outname,outshape
+                
+                if name:
+                    outname.append(name)
+                    outshape.append(shape)
+
+        try:
+            assert outname, "Failed at layer %s, layer's bottom not detected ..."%(layer.name)
+        except:
+            print("Failed at layer %s, layer's bottom not detected ..."%(layer.name))
+            import ipdb; ipdb.set_trace()
+        return outname, outshape
 
     #获取当前层的输出名，即layername+"_Y"
     def __getCurrentLayerOutName(self,layer):
-        return [layer.name+"_Y"]
+        # return [layer.name+"_Y"]
+        # 考虑有多个输出的情况
+        if layer.top == layer.bottom and len(layer.top) == 1:
+            return [layer.name+"_Y"]
+        
+        return [out+"_Y" for out in layer.top]
 
 
 
@@ -167,17 +222,27 @@ class Caffe2Onnx():
                 self.__n += 1
 
             #BatchNorm+Scale
-            if Layers[i].type == "BatchNorm":
+            elif Layers[i].type == "BatchNorm" or Layers[i].type == "BN":
                 #1.获取节点输入名、输入维度、输出名、节点名
-                inname,input_shape = self.__getLastLayerOutNameAndShape(Layers[i])#获取输入名列表和输入形状
+                inname, input_shape = self.__getLastLayerOutNameAndShape(Layers[i])#获取输入名列表和输入形状
                 outname = self.__getCurrentLayerOutName(Layers[i]) #获取输出名列表
                 nodename = Layers[i].name
 
                 #2.生成节点参数tensor value info,并获取节点参数名,将参数名加入节点输入名列表
-                scale_pname = self.__addInputsTVIfromParams(Layers[i + 1],op_pname["Scale"],op_ptype["Scale"])
-                inname.extend(scale_pname)
-                bn_pname = self.__addInputsTVIfromParams(Layers[i],op_pname["BatchNorm"],op_ptype["BatchNorm"])
-                inname.extend(bn_pname)
+                if i < len(Layers) - 1 and Layers[i+1].type == "Scale":
+                    scale_pname, scale_pshape = self.__addInputsTVIfromParams(Layers[i + 1], op_pname["Scale"], op_ptype["Scale"])
+                    bn_pname, bn_pshape = self.__addInputsTVIfromParams(Layers[i], op_pname["BatchNorm"], op_ptype["BatchNorm"])
+                    assert bn_pshape == scale_pshape, "BatchNorm and Scale params should share the same shape"
+                    inname.extend(scale_pname)
+                    inname.extend(bn_pname)
+
+                else:
+                    bn_pshape, _ = self.__getParamsShapeandData(Layers[i])
+                    custom_params = [np.ones(shape=bn_pshape[0], dtype=np.float), 0.001 + np.zeros(shape=bn_pshape[1], dtype=np.float)]
+                    scale_pname = self.__addInputsTVIfromMannul(Layers[i], op_pname["Scale"], op_ptype["Scale"], bn_pshape, custom_params)
+                    bn_pname, bn_pshape = self.__addInputsTVIfromParams(Layers[i], op_pname["BatchNorm"], op_ptype["BatchNorm"])
+                    inname.extend(scale_pname)
+                    inname.extend(bn_pname)
 
 
                 #3.构建bn_node
@@ -188,7 +253,7 @@ class Caffe2Onnx():
                 self.__n += 1
 
             #Pooling
-            if Layers[i].type == "Pooling" or Layers[i].type == Layer_POOLING:
+            elif Layers[i].type == "Pooling" or Layers[i].type == Layer_POOLING:
                 #1.获取节点输入名、输入维度、输出名、节点名
                 inname,input_shape = self.__getLastLayerOutNameAndShape(Layers[i])#获取输入名列表和输入形状
                 outname = self.__getCurrentLayerOutName(Layers[i])#获取输出名列表
@@ -203,7 +268,7 @@ class Caffe2Onnx():
 
 
             #Eltwise
-            if Layers[i].type == "Eltwise" or Layers[i].type == Layer_ELTWISE:
+            elif Layers[i].type == "Eltwise" or Layers[i].type == Layer_ELTWISE:
                 #1.获取节点输入名、输入维度、输出名、节点名
                 inname,input_shape = self.__getLastLayerOutNameAndShape(Layers[i])#获取输入名列表和输入形状
                 outname = self.__getCurrentLayerOutName(Layers[i])#获取输出名列表
@@ -217,7 +282,7 @@ class Caffe2Onnx():
                 self.__n += 1
 
             #Softmax
-            if Layers[i].type == "Softmax" or Layers[i].type == Layer_SOFTMAX:
+            elif Layers[i].type == "Softmax" or Layers[i].type == Layer_SOFTMAX:
                 #1.获取节点输入名、输入维度、输出名、节点名
                 inname,input_shape = self.__getLastLayerOutNameAndShape(Layers[i])#获取输入名列表和输入形状
                 outname = self.__getCurrentLayerOutName(Layers[i])#获取输出名列表
@@ -231,7 +296,7 @@ class Caffe2Onnx():
                 self.__n += 1
 
             #Relu
-            if Layers[i].type == "ReLU" or Layers[i].type == Layer_RELU:
+            elif Layers[i].type == "ReLU" or Layers[i].type == Layer_RELU:
                 #1.获取节点输入名、输入维度、输出名、节点名
                 inname,input_shape = self.__getLastLayerOutNameAndShape(Layers[i])#获取输入名列表和输入形状
                 outname = self.__getCurrentLayerOutName(Layers[i])#获取输出名列表
@@ -245,7 +310,7 @@ class Caffe2Onnx():
                 self.__n += 1
 
             #LRN
-            if Layers[i].type == "LRN" or Layers[i].type == Layer_LRN:
+            elif Layers[i].type == "LRN" or Layers[i].type == Layer_LRN:
                 #1.获取节点输入名、输入维度、输出名、节点名
                 inname,input_shape = self.__getLastLayerOutNameAndShape(Layers[i])
                 outname = self.__getCurrentLayerOutName(Layers[i])
@@ -259,7 +324,7 @@ class Caffe2Onnx():
                 self.__n += 1
 
             #Dropout
-            if Layers[i].type == "Dropout" or Layers[i].type == Layer_DROPOUT:
+            elif Layers[i].type == "Dropout" or Layers[i].type == Layer_DROPOUT:
                 #1.获取节点输入名、输入维度、输出名、节点名
                 inname,input_shape = self.__getLastLayerOutNameAndShape(Layers[i])
                 outname = self.__getCurrentLayerOutName(Layers[i])
@@ -274,7 +339,7 @@ class Caffe2Onnx():
 
 
             #Upsample
-            if Layers[i].type == "Upsample" or Layers[i].type == Layer_UPSAMPLE:
+            elif Layers[i].type == "Upsample" or Layers[i].type == Layer_UPSAMPLE:
                 #1.获取节点输入名、输入维度、输出名、节点名
                 inname, input_shape = self.__getLastLayerOutNameAndShape(Layers[i])
                 outname = self.__getCurrentLayerOutName(Layers[i])
@@ -294,7 +359,7 @@ class Caffe2Onnx():
                 self.__n += 1
 
             #Concat
-            if Layers[i].type == "Concat" or Layers[i].type == Layer_CONCAT:
+            elif Layers[i].type == "Concat" or Layers[i].type == Layer_CONCAT:
                 #1.获取节点输入名、输入维度、输出名、节点名
                 inname,input_shape = self.__getLastLayerOutNameAndShape(Layers[i])
                 outname = self.__getCurrentLayerOutName(Layers[i])
@@ -308,16 +373,14 @@ class Caffe2Onnx():
                 self.__n += 1
 
             #PRelu
-            if Layers[i].type == "PReLU":
+            elif Layers[i].type == "PReLU":
                 #1.获取节点输入名、输入维度、输出名、节点名
                 inname,input_shape = self.__getLastLayerOutNameAndShape(Layers[i])
                 outname = self.__getCurrentLayerOutName(Layers[i])
                 nodename = Layers[i].name
 
                 #2.生成节点参数tensor value info,并获取节点参数名,将参数名加入节点输入名列表
-                paramshape = [input_shape[0]]
-                paramdata = [0.25 * np.ones(input_shape[0]).reshape(1, -1)[0]]
-                pname = self.__addInputsTVIfromMannul(Layers[i],op_pname["PRelu"],op_ptype["PRelu"],paramshape,paramdata)
+                pname = self.__addInputsTVIfromParams(Layers[i], op_pname["PRelu"], op_ptype["PRelu"])
                 inname.extend(pname)
 
 
@@ -331,7 +394,7 @@ class Caffe2Onnx():
 
             # InnerProduct
             # 由于onnx中没有全连接层，因此需要拆分，拆分有两种方法(Reshape+Gemm,Reshape+MatMul+Add)
-            if Layers[i].type == "InnerProduct" or Layers[i].type == Layer_INNER_PRODUCT:
+            elif Layers[i].type == "InnerProduct" or Layers[i].type == Layer_INNER_PRODUCT:
                 ####一、reshape
                 reshape_layer = copy.deepcopy(Layers[i])  #深拷贝
                 #1.获取节点输入名、输入维度、输出名、节点名
