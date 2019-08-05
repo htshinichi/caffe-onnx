@@ -1,36 +1,39 @@
 # caffe-onnx
-caffe model convert to onnx model  
+This tool converts caffe model convert to onnx model  
+only use for inference
 
-## 介绍 Introduction  
-前面写过一版caffe2onnx的工具，不过由于结构不合理以及对参数数据有很多多余的操作，会导致如vgg16这种参数量较大的模型难以转换，因此重写了一版，在读取参数的同时就将其转为tensor和tensor value info，并且在每个算子节点构建的时候直接转为onnx中NodeProto的类型。
-## 依赖库 Dependencies  
+## Introduction  
+This is the second version of converting caffe model to onnx model. In this version, all the parameters will be transformed to tensor and tensor value info when reading `.caffemodel` file and each operator node is constructed directly into the type of NodeProto in onnx.
+
+
+## Dependencies  
 - protobuf  
-- onnx    
-仅进行模型转换，不需要配置caffe环境
-## 使用 Use  
+- onnx==1.4.0    
+
+( caffe environment is not required! )
+
+## How to Use  
 ```
-usage: convert2onnx.py [-h] [CNP] [CMP] [ON] [OSP]
+usage: convert2onnx.py [-h] [caffe_graph_path] [caffe_params_path] [onnx_name] [save_dir]
 
 positional arguments:
-  CNP         caffe's prototxt file path
-  CMP         caffe's caffemodel file path
-  ON          onnx model name
-  OSP         onnx model file saved path
-
+  caffe_graph_path          caffe's prototxt file path
+  caffe_params_path         caffe's caffemodel file path
+  onnx_name                 onnx model name
+  save_dir                  onnx model file saved path
 ```  
-默认值：  
-CNP default="./caffemodel/test/test.prototxt"  
-CMP default="./caffemodel/test/test.caffemodel"  
-ON default="test"  
-OSP default="./onnxmodel/"  
-## 现在支持的算子 Current Support Operator  
+
+
+## Current Support Operator  
 BatchNorm  
 Convolution  
+Deconvolution  
 Concat  
 Dropout  
 InnerProduct(Reshape+Gemm)  
 LRN  
 Pooling  
+Unpooling  
 ReLU  
 Softmax  
 Eltwise  
@@ -38,7 +41,7 @@ Upsample
 Scale  
 
 
-## 测试转换用模型 Test Caffe Model  
+## Test Caffe Model  
 - Resnet50  
 - AlexNet  
 - Agenet  
@@ -46,9 +49,9 @@ Scale
 - vgg16  
 
 
-## 可视化 Visualization  
-可以使用神器netron https://github.com/lutzroeder/netron  
-[netron网页版](https://lutzroeder.github.io/netron/)
+## Visualization  
+netron is recommended: https://github.com/lutzroeder/netron  
+[netron Browser](https://lutzroeder.github.io/netron/)
 
 
 

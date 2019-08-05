@@ -452,6 +452,27 @@ class Caffe2Onnx():
                 self.__n += 1
 
 
+            # Deconvolution
+            elif Layers[i].type == "Deconvolution":
+                #1.获取节点输入名、输入维度、输出名、节点名
+                inname, input_shape = self.__getLastLayerOutNameAndShape(Layers[i])
+                outname = self.__getCurrentLayerOutName(Layers[i])
+                nodename = Layers[i].name
+
+                #2.生成节点参数tensor value info,并获取节点参数名,将参数名加入节点输入名列表
+                conv_pname = self.__addInputsTVIfromParams(Layers[i], op_pname["ConvTranspose"], op_ptype["ConvTranspose"])
+                inname.extend(conv_pname)
+
+                #3.构建conv_node
+                conv_node = op.createConvTranspose(Layers[i], nodename, inname, outname, input_shape)
+                if self.debug:
+                    self.__print_debug_info(nodename, inname, outname, input_shape, conv_node.outputs_shape)
+
+                #4.添加节点到节点列表
+                self.NodeList.append(conv_node)
+                self.__n += 1
+
+
 
     #判断当前节点是否是输出节点
     def judgeoutput(self,current_node,nodelist):
