@@ -11,3 +11,4 @@ from src.OPs.ReLU import *
 from src.OPs.Reshape import *
 from src.OPs.Softmax import *
 from src.OPs.Upsample import *
+from src.OPs.UnPooling import *

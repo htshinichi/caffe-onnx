@@ -267,6 +267,21 @@ class Caffe2Onnx():
                 self.__n += 1
 
 
+            # MaxUnPool
+            elif Layers[i].type == "MaxUnpool":
+                #1.获取节点输入名、输入维度、输出名、节点名
+                inname, input_shape = self.__getLastLayerOutNameAndShape(Layers[i])#获取输入名列表和输入形状
+                outname = self.__getCurrentLayerOutName(Layers[i])#获取输出名列表
+                nodename = Layers[i].name
+
+                #2.构建unpool_node
+                unpool_node = op.createUnPooling(Layers[i], nodename, inname, outname, input_shape)
+
+                #3.添加节点到节点列表
+                self.NodeList.append(unpool_node)
+                self.__n += 1
+
+
             #Eltwise
             elif Layers[i].type == "Eltwise" or Layers[i].type == Layer_ELTWISE:
                 #1.获取节点输入名、输入维度、输出名、节点名

@@ -26,7 +26,7 @@ def getPoolingAttri(layer):
             }
     return dict
 #计算输出维度
-def getPoolingOutShape(input_shape,layer,dict):
+def getPoolingOutShape(input_shape,layer,dict, with_indices=False):
     kernel_shape = dict["kernel_shape"]
     pads = dict["pads"]
     strides = dict["strides"]
@@ -38,13 +38,25 @@ def getPoolingOutShape(input_shape,layer,dict):
         pads = [0,0,1,1]
     else:
         output_shape_h = int(h)
-    output_shape = [[input_shape[0][0],input_shape[0][1],output_shape_h,output_shape_h]]
+
+    w = (input_shape[0][3] - kernel_shape[1] + 2 * pads[1])/strides[1] + 1
+    if w > int(w):
+        output_shape_w = int(w) + 1
+        pads = [0,0,1,1]
+    else:
+        output_shape_w = int(w)
+
+    if not with_indices:
+        output_shape = [[input_shape[0][0],input_shape[0][1],output_shape_h,output_shape_w]]
+    else:
+        output_shape = [[input_shape[0][0],input_shape[0][1],output_shape_h,output_shape_w], [input_shape[0][0],input_shape[0][1],output_shape_h,output_shape_w]]
 
     return output_shape
 #构建节点
 def createPooling(layer,nodename,inname,outname,input_shape):
     dict = getPoolingAttri(layer)
-    output_shape = getPoolingOutShape(input_shape,layer,dict)
+    with_indices = True if len(outname) == 2 else False
+    output_shape = getPoolingOutShape(input_shape,layer, dict, with_indices=with_indices)
 
     #判断是池化种类,最大池化、平均池化
     if layer.pooling_param.pool == 0:
