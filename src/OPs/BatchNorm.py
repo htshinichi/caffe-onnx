@@ -4,8 +4,9 @@ import src.c2oObject as Node
 #获取超参数
 def getBNAttri(layer):
     #超参数字典
-    dict = {"epsilon": 0.00001,  # 滑动系数
-            "momentum": 0.9
+    
+    dict = {"epsilon": layer.batch_norm_param.eps,  # 滑动系数
+            "momentum": layer.batch_norm_param.moving_average_fraction
             }
     return dict
 #计算输出维度

@@ -45,7 +45,8 @@ def getPoolingOutShape(input_shape,layer,dict, with_indices=False):
         pads = [0,0,1,1]
     else:
         output_shape_w = int(w)
-
+    if kernel_shape[0] == 0:
+        output_shape_h,output_shape_w = (1,1)
     if not with_indices:
         output_shape = [[input_shape[0][0],input_shape[0][1],output_shape_h,output_shape_w]]
     else:
@@ -60,9 +61,16 @@ def createPooling(layer,nodename,inname,outname,input_shape):
 
     #判断是池化种类,最大池化、平均池化
     if layer.pooling_param.pool == 0:
-        node = Node.c2oNode(layer, nodename, "MaxPool", inname, outname, input_shape, output_shape, dict=dict)
+        if layer.pooling_param.global_pooling == True:
+            node = Node.c2oNode(layer, nodename, "GlobalMaxPool", inname, outname, input_shape, output_shape, dict={})
+        else:
+            node = Node.c2oNode(layer, nodename, "MaxPool", inname, outname, input_shape, output_shape, dict=dict)
     elif layer.pooling_param.pool == 1:
-        node = Node.c2oNode(layer, nodename, "AveragePool", inname, outname, input_shape, output_shape, dict=dict)
+        if layer.pooling_param.global_pooling == True:
+         
+            node = Node.c2oNode(layer, nodename, "GlobalAveragePool", inname, outname, input_shape, output_shape, dict={})
+        else:
+            node = Node.c2oNode(layer, nodename, "AveragePool", inname, outname, input_shape, output_shape, dict=dict)
     #Layers[i].pooling_param.pool==2为随机池化
     print(nodename, "节点构建完成")
 

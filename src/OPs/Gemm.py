@@ -6,7 +6,7 @@ def getGemmAttri(layer):
     dict = {"alpha": 1.0,
             "beta": 1.0,
             "transA": 0,
-            "transB": 0}
+            "transB": 1}
     return dict
 #计算输出维度
 def getGemmOutShape(input_shape,num_output):
