@@ -29,7 +29,7 @@ positional arguments:
 
 Take ResNet-50 as an example, you can follow the instructions.
 ```bash
-0. Download resnet50 `.caffemodel` file from BaiduDisk
+0. Download resnet50 `.caffemodel` file from BaiduDisk and put `resnet-50-model.caffemodel` to ./caffemodel/resnet-50/
 Link：https://pan.baidu.com/s/10YB42muAd0vGiNTCetvLsA 
 Code：7az4 
 
