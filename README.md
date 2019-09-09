@@ -10,6 +10,10 @@ This is the second version of converting caffe model to onnx model. In this vers
 - protobuf  
 - onnx==1.4.0    
 
+```bash
+$ pip install -r requirements.txt
+```
+
 ( caffe environment is not required! )
 
 ## How to Use  
@@ -22,6 +26,24 @@ positional arguments:
   onnx_name                 onnx model name
   save_dir                  onnx model file saved path
 ```  
+
+Take ResNet-50 as an example, you can follow the instructions.
+```bash
+1. convert resnet50 caffe model to onnx model
+$ python convert2onnx.py \
+          caffemodel/resnet-50/resnet-50-model.prototxt \
+          caffemodel/resnet-50/resnet-50-model.caffemodel \
+          resnet50 onnxmodel
+
+2. visualize onnx model by netron
+$ netron onnxmodel/resnet50.onnx --host 0.0.0.0 --port 8008
+
+2. run test scripts
+$ python onnxmodel/test_resnet.py \
+          --input_shape 224 224 \
+          --img_path onnxmodel/airplane.jpg \
+          --onnx_path onnxmodel/resnet50.onnx
+```
 
 
 ## Current Support Operator  
