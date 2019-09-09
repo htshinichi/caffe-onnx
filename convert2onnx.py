@@ -23,7 +23,7 @@ def main(args):
     os.makedirs(save_dir, exist_ok=True)
 
     graph, params = loadcaffemodel(caffe_graph_path,caffe_params_path)
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     c2o = Caffe2Onnx(graph, params, onnx_name)
     onnxmodel = c2o.createOnnxModel()
     saveonnxmodel(onnxmodel, save_path)
