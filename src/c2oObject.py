@@ -1,4 +1,6 @@
 from onnx import helper
+
+
 class c2oNode(object):
     def __init__(self,layer,node_name,type,inputs_name,outputs_name,inputs_shape,outputs_shape,dict={}):
         self.node = self.__createNode(type, inputs_name, outputs_name, node_name, dict)

@@ -4,18 +4,18 @@ import src.c2oObject as Node
 #获取超参数
 def getPoolingAttri(layer):
     ##池化核尺寸
-    kernel_shape = np.array([layer.pooling_param.kernel_size]*2).reshape(1,-1)[0].tolist()
+    kernel_shape = np.array([layer.pooling_param.kernel_size]*2).flatten().tolist()
     if layer.pooling_param.kernel_size == []:
         kernel_shape = [layer.pooling_param.kernel_h,layer.pooling_param.kernel_w]
     ##步长
     strides = [1, 1]#默认为1
     if layer.pooling_param.stride != []:
-        strides = np.array([layer.pooling_param.stride]*2).reshape(1,-1)[0].tolist()
+        strides = np.array([layer.pooling_param.stride]*2).flatten().tolist()
     ##填充
     pads = [0, 0, 0, 0]#默认为0
     # 这里与卷积时一样,有pad,就按其值设置
     if layer.pooling_param.pad != []:
-        pads = np.array([layer.pooling_param.pad] * 4).reshape(1, -1)[0].tolist()
+        pads = np.array([layer.pooling_param.pad] * 4).flatten().tolist()
     elif layer.pooling_param.pad_h != 0 or layer.pooling_param.pad_w != 0:
         pads = [layer.pooling_param.pad_h,layer.pooling_param.pad_w,layer.pooling_param.pad_h,layer.pooling_param.pad_w]
 
@@ -32,19 +32,20 @@ def getPoolingOutShape(input_shape,layer,dict, with_indices=False):
     strides = dict["strides"]
 
     #计算输出维度,与卷积一样,若为非整数则向上取整
-    h = (input_shape[0][2] - kernel_shape[0] + 2 * pads[0])/strides[0] + 1
+    h = (input_shape[0][2] - kernel_shape[0] + pads[0] + pads[2])/strides[0] + 1
     if h > int(h):
         output_shape_h = int(h) + 1
-        pads = [0,0,1,1]
+        pads[2] += 1
     else:
         output_shape_h = int(h)
 
-    w = (input_shape[0][3] - kernel_shape[1] + 2 * pads[1])/strides[1] + 1
+    w = (input_shape[0][3] - kernel_shape[1] + pads[1] + pads[3])/strides[1] + 1
     if w > int(w):
         output_shape_w = int(w) + 1
-        pads = [0,0,1,1]
+        pads[3] += 1
     else:
         output_shape_w = int(w)
+
     if kernel_shape[0] == 0:
         output_shape_h,output_shape_w = (1,1)
     if not with_indices:

@@ -1,9 +1,12 @@
-import src.OPs as op
-from src.c2oObject import *
-from onnx import helper
 import copy
 import numpy as np
-from src.op_layer_info import *
+from onnx import helper
+
+from . import OPs as op
+from .c2oObject import *
+from .op_layer_info import *
+
+
 class Caffe2Onnx():
     def __init__(self,net,model,onnxname):
         #初始化一个c2oGraph对象
@@ -23,7 +26,7 @@ class Caffe2Onnx():
         #获取层列表
         LayerList = self.__addInputsTVIandGetLayerList(net)
         self.__getNodeList(LayerList)
-        self.___addOutputsTVIandValueInfo()
+        self.__addOutputsTVIandValueInfo()
 
     #获取网络层
     def __getNetLayer(self,net):
@@ -81,7 +84,7 @@ class Caffe2Onnx():
         ParamShape = []
         ParamData = []
         #根据这个layer名找出对应的caffemodel中的参数
-        for model_layer in self.__ModelLayer:
+        for model_layer in self._ModelLayer:
             if layer.name == model_layer.name:
                 Params = copy.deepcopy(model_layer.blobs)
                 ParamShape = [p.shape.dim for p in Params]
@@ -186,7 +189,7 @@ class Caffe2Onnx():
             assert outname, "Failed at layer %s, layer's bottom not detected ..."%(layer.name)
         except:
             print("Failed at layer %s, layer's bottom not detected ..."%(layer.name))
-            import ipdb; ipdb.set_trace()
+
         return outname, outshape
 
     #获取当前层的输出名，即layername+"_Y"
@@ -438,6 +441,7 @@ class Caffe2Onnx():
                 gemm_outname = [gemm_layer.name+"_Gemm_Y"]
                 gemm_nodename = gemm_layer.name+"_Gemm"
 
+
                 #2.生成节点参数tensor value info,并获取节点参数名,将参数名加入节点输入名列表
                 gemm_pname = self.__addInputsTVIfromParams(gemm_layer,op_pname["InnerProduct"],op_ptype["InnerProduct"])  # 获取输入参数，对于add来说blobs[1]里存放的是bias不需要,所以直接获取blobs[0]
                 gemm_inname.extend(gemm_pname)
@@ -449,6 +453,7 @@ class Caffe2Onnx():
                 #4.添加节点到节点列表
                 self.NodeList.append(matmul_node)
                 self.__n += 1
+
 
 
             # Deconvolution
@@ -482,7 +487,7 @@ class Caffe2Onnx():
         return True
 
     #添加模型输出信息和中间节点信息
-    def ___addOutputsTVIandValueInfo(self):
+    def __addOutputsTVIandValueInfo(self):
         for i in range(len(self.NodeList)):
             if self.judgeoutput(self.NodeList[i],self.NodeList):#构建输出节点信息
                 lastnode = self.NodeList[i]
