@@ -17,6 +17,7 @@ op_pname={"Conv":["_W","_b"],
           "Scale":["_scale","_b"],
           "Reshape":["_shape"],
           "InnerProduct":["_W","_B"],
+          "ConvTranspose":["_W","_b"],
           "Upsample":["_Scale"],
           "PRelu":["_slope"]
           }
@@ -25,6 +26,7 @@ op_ptype={"Conv":[TensorProto.FLOAT,TensorProto.FLOAT],
           "Scale":[TensorProto.FLOAT,TensorProto.FLOAT],
           "Reshape":[TensorProto.INT64],
           "InnerProduct":[TensorProto.FLOAT,TensorProto.FLOAT],
+          "ConvTranspose":[TensorProto.FLOAT, TensorProto.FLOAT],
           "Upsample":[TensorProto.FLOAT],
           "PRelu":[TensorProto.FLOAT]
           }
