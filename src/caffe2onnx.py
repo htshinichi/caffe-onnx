@@ -12,7 +12,7 @@ class Caffe2Onnx():
         #初始化一个c2oGraph对象
         self.onnxmodel = c2oGraph(onnxname)
         #网络和参数
-        self.__NetLayer = self.__getNetLayer(net)
+        self._NetLayer = self.__getNetLayer(net)
         self._ModelLayer = self.__getModelLayer(model)
 
         #模型的输入名和输入维度
@@ -51,10 +51,10 @@ class Caffe2Onnx():
     #将模型输入信息添加到Inputs中并获取后续层列表
     def __addInputsTVIandGetLayerList(self,net):
         #如果第一个layer的类型为Input,且没有net.input存在
-        if net.input == [] and self.__NetLayer[0].type == "Input":
+        if net.input == [] and self._NetLayer[0].type == "Input":
             layer_list = []
             #考虑到整个网络会有多输入情况
-            for lay in self.__NetLayer:
+            for lay in self._NetLayer:
                 if lay.type == "Input":
                     in_tvi = helper.make_tensor_value_info(lay.name+"_input", TensorProto.FLOAT, lay.input_param.shape[0].dim)
                     self.model_input_name.append(lay.name+"_input")
@@ -67,12 +67,19 @@ class Caffe2Onnx():
 
         #如果存在net.input
         elif net.input !=[]:
-            in_tvi = helper.make_tensor_value_info("input", TensorProto.FLOAT, net.input_dim)
+            if bool(net.input_dim):
+                input_dim = net.input_dim
+            elif bool(net.input_shape):
+                input_dim = net.input_shape[0].dim
+            else:
+                raise RuntimeError("Input shape missing!")
+
+            in_tvi = helper.make_tensor_value_info("input", TensorProto.FLOAT, input_dim)
             self.model_input_name.append("input")
-            self.model_input_shape.append(net.input_dim)
+            self.model_input_shape.append(input_dim)
             self.onnxmodel.addInputsTVI(in_tvi)
             print("添加模型输入信息")
-            return self.__NetLayer
+            return self._NetLayer
 
         #以上情况都不是,则该caffe模型没有输入,存在问题
         else:
@@ -208,6 +215,8 @@ class Caffe2Onnx():
             # Convolution
             if Layers[i].type == "Convolution" or Layers[i].type == Layer_CONVOLUTION:
                 #1.获取节点输入名、输入维度、输出名、节点名
+                if Layers[i].name == "conv4_3_norm_mbox_loc":
+                    import ipdb; ipdb.set_trace()
                 inname, input_shape = self.__getLastLayerOutNameAndShape(Layers[i])
                 outname = self.__getCurrentLayerOutName(Layers[i])
                 nodename = Layers[i].name
@@ -356,24 +365,24 @@ class Caffe2Onnx():
 
 
             #Upsample
-            elif Layers[i].type == "Upsample" or Layers[i].type == Layer_UPSAMPLE:
-                #1.获取节点输入名、输入维度、输出名、节点名
-                inname, input_shape = self.__getLastLayerOutNameAndShape(Layers[i])
-                outname = self.__getCurrentLayerOutName(Layers[i])
-                nodename = Layers[i].name
+            # elif Layers[i].type == "Upsample" or Layers[i].type == Layer_UPSAMPLE:
+            #     #1.获取节点输入名、输入维度、输出名、节点名
+            #     inname, input_shape = self.__getLastLayerOutNameAndShape(Layers[i])
+            #     outname = self.__getCurrentLayerOutName(Layers[i])
+            #     nodename = Layers[i].name
 
-                #2.生成节点参数tensor value info,并获取节点参数名,将参数名加入节点输入名列表
-                paramshape = [[4, 1]]
-                paramdata = [[1.0, 1.0, Layers[i].upsample_param.scale, Layers[i].upsample_param.scale]]
-                pname = self.__addInputsTVIfromMannul(Layers[i],op_pname["Upsample"],op_ptype["Upsample"],paramshape,paramdata)
-                inname.extend(pname)
+            #     #2.生成节点参数tensor value info,并获取节点参数名,将参数名加入节点输入名列表
+            #     paramshape = [[4, 1]]
+            #     paramdata = [[1.0, 1.0, Layers[i].upsample_param.scale, Layers[i].upsample_param.scale]]
+            #     pname = self.__addInputsTVIfromMannul(Layers[i],op_pname["Upsample"],op_ptype["Upsample"],paramshape,paramdata)
+            #     inname.extend(pname)
 
-                #3.构建Upsample_node
-                Upsample_node = op.createUpsample(Layers[i], nodename, inname, outname, input_shape)
+            #     #3.构建Upsample_node
+            #     Upsample_node = op.createUpsample(Layers[i], nodename, inname, outname, input_shape)
 
-                #4.添加节点到节点列表
-                self.NodeList.append(Upsample_node)
-                self.__n += 1
+            #     #4.添加节点到节点列表
+            #     self.NodeList.append(Upsample_node)
+            #     self.__n += 1
 
             #Concat
             elif Layers[i].type == "Concat" or Layers[i].type == Layer_CONCAT:

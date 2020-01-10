@@ -1,13 +1,14 @@
 from google.protobuf import text_format
-from proto import caffe_upsample_pb2
 import onnx
+
+from proto import caffe_upsample_pb2 as caffe_pb2
 
 def loadcaffemodel(net_path,model_path):
     # read prototxt
-    net = caffe_upsample_pb2.NetParameter()
+    net = caffe_pb2.NetParameter()
     text_format.Merge(open(net_path).read(), net)
     # read caffemodel
-    model = caffe_upsample_pb2.NetParameter()
+    model = caffe_pb2.NetParameter()
     f = open(model_path, 'rb')
     model.ParseFromString(f.read())
     f.close()
