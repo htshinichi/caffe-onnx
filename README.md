@@ -97,4 +97,5 @@ netron is recommended: https://github.com/lutzroeder/netron
 [netron Browser](https://lutzroeder.github.io/netron/)
 
 
-
+## Development Guide
+See [Develop Guide](./DEVELOP_GUIDE.md)
