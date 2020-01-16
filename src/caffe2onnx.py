@@ -365,24 +365,24 @@ class Caffe2Onnx():
 
 
             #Upsample
-            # elif Layers[i].type == "Upsample" or Layers[i].type == Layer_UPSAMPLE:
-            #     #1.获取节点输入名、输入维度、输出名、节点名
-            #     inname, input_shape = self.__getLastLayerOutNameAndShape(Layers[i])
-            #     outname = self.__getCurrentLayerOutName(Layers[i])
-            #     nodename = Layers[i].name
+            elif Layers[i].type == "Upsample" or Layers[i].type == Layer_UPSAMPLE:
+                #1.获取节点输入名、输入维度、输出名、节点名
+                inname, input_shape = self.__getLastLayerOutNameAndShape(Layers[i])
+                outname = self.__getCurrentLayerOutName(Layers[i])
+                nodename = Layers[i].name
 
-            #     #2.生成节点参数tensor value info,并获取节点参数名,将参数名加入节点输入名列表
-            #     paramshape = [[4, 1]]
-            #     paramdata = [[1.0, 1.0, Layers[i].upsample_param.scale, Layers[i].upsample_param.scale]]
-            #     pname = self.__addInputsTVIfromMannul(Layers[i],op_pname["Upsample"],op_ptype["Upsample"],paramshape,paramdata)
-            #     inname.extend(pname)
+                #2.生成节点参数tensor value info,并获取节点参数名,将参数名加入节点输入名列表
+                paramshape = [[4, 1]]
+                paramdata = [[1.0, 1.0, Layers[i].upsample_param.scale, Layers[i].upsample_param.scale]]
+                pname = self.__addInputsTVIfromMannul(Layers[i],op_pname["Upsample"],op_ptype["Upsample"],paramshape,paramdata)
+                inname.extend(pname)
 
-            #     #3.构建Upsample_node
-            #     Upsample_node = op.createUpsample(Layers[i], nodename, inname, outname, input_shape)
+                #3.构建Upsample_node
+                Upsample_node = op.createUpsample(Layers[i], nodename, inname, outname, input_shape)
 
-            #     #4.添加节点到节点列表
-            #     self.NodeList.append(Upsample_node)
-            #     self.__n += 1
+                #4.添加节点到节点列表
+                self.NodeList.append(Upsample_node)
+                self.__n += 1
 
             #Concat
             elif Layers[i].type == "Concat" or Layers[i].type == Layer_CONCAT:
