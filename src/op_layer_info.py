@@ -12,7 +12,7 @@ Layer_POOLING = caffe_pb2.V1LayerParameter.POOLING #17
 Layer_RELU = caffe_pb2.V1LayerParameter.RELU #18
 Layer_SOFTMAX = caffe_pb2.V1LayerParameter.SOFTMAX #20
 Layer_ELTWISE = caffe_pb2.V1LayerParameter.ELTWISE #25
-# Layer_UPSAMPLE = caffe_pb2.V1LayerParameter.UPSAMPLE #40
+Layer_UPSAMPLE = caffe_pb2.V1LayerParameter.UPSAMPLE #40
 op_pname={"Conv":["_W","_b"],
           "BatchNorm":["_mean","_var"],
           "Scale":["_scale","_b"],
@@ -28,6 +28,6 @@ op_ptype={"Conv":[TensorProto.FLOAT,TensorProto.FLOAT],
           "Reshape":[TensorProto.INT64],
           "InnerProduct":[TensorProto.FLOAT,TensorProto.FLOAT],
           "ConvTranspose":[TensorProto.FLOAT, TensorProto.FLOAT],
-        #   "Upsample":[TensorProto.FLOAT],
+          "Upsample":[TensorProto.FLOAT],
           "PRelu":[TensorProto.FLOAT]
           }
