@@ -19,7 +19,7 @@ op_pname={"Conv":["_W","_b"],
           "Reshape":["_shape"],
           "InnerProduct":["_W","_B"],
           "ConvTranspose":["_W","_b"],
-        #   "Upsample":["_Scale"],
+          "Upsample":["_Scale"],
           "PRelu":["_slope"]
           }
 op_ptype={"Conv":[TensorProto.FLOAT,TensorProto.FLOAT],
