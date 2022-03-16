@@ -96,8 +96,8 @@ class Caffe2Onnx():
                 Params = copy.deepcopy(model_layer.blobs)
                 ParamShape = [p.shape.dim for p in Params]
                 ParamData = [p.data for p in Params]
-                if layer.type == "BatchNorm" or layer.type == "BN": 
-                    if len(ParamShape) == 3:  
+                if layer.type == "BatchNorm" or layer.type == "BN":
+                    if len(ParamShape) == 3:
                         # 如果是bn层，则不用最后一层的滑动系数
                         ParamShape = ParamShape[:-1]
                         ParamData = ParamData[:-1]
@@ -109,8 +109,7 @@ class Caffe2Onnx():
 
 
     #将参数添加到Inputs中,并生成tensor存储数据
-    def __addInputsTVIfromParams(self,layer,ParamName,ParamType):
-        #print(layer.type)
+    def __addInputsTVIfromParams(self,layer,ParamName,ParamType, input_shape=None):
         ParamShape = []
         ParamData = []
         #根据这个layer名找出对应的caffemodel中的参数
@@ -130,9 +129,10 @@ class Caffe2Onnx():
 
                     # comment it for tvm because tvm use broadcast at prelu layer
                 elif layer.type == "PReLU":
-                    ParamShape = [[ParamShape[0][0], 1, 1]]
+                    for i in range(2, len(input_shape[0])):
+                        ParamShape[0].append(1)
                 break
-        
+
         #判断是否有Param
         if ParamShape != []:
             ParamName = ParamName[0:len(ParamShape)]
@@ -187,7 +187,7 @@ class Caffe2Onnx():
                         if layer.bottom[i] == node.top[j]:
                             name = node.outputs_name[j]
                             shape = node.outputs_shape[j]
-                
+
                 if name:
                     outname.append(name)
                     outshape.append(shape)
@@ -205,7 +205,7 @@ class Caffe2Onnx():
         # 考虑有多个输出的情况
         if layer.top == layer.bottom and len(layer.top) == 1:
             return [layer.name+"_Y"]
-        
+
         return [out+"_Y" for out in layer.top]
 
 
@@ -406,7 +406,7 @@ class Caffe2Onnx():
                 nodename = Layers[i].name
 
                 #2.生成节点参数tensor value info,并获取节点参数名,将参数名加入节点输入名列表
-                pname = self.__addInputsTVIfromParams(Layers[i], op_pname["PRelu"], op_ptype["PRelu"])
+                pname = self.__addInputsTVIfromParams(Layers[i], op_pname["PRelu"], op_ptype["PRelu"], input_shape)
                 inname.extend(pname)
 
 
