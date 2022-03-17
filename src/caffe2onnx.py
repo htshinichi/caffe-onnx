@@ -56,11 +56,12 @@ class Caffe2Onnx():
             #考虑到整个网络会有多输入情况
             for lay in self._NetLayer:
                 if lay.type == "Input":
-                    in_tvi = helper.make_tensor_value_info(lay.name+"_input", TensorProto.FLOAT, lay.input_param.shape[0].dim)
-                    self.model_input_name.append(lay.name+"_input")
+                    inp_name = lay.top[0] +"_input"
+                    in_tvi = helper.make_tensor_value_info(inp_name, TensorProto.FLOAT, lay.input_param.shape[0].dim)
+                    self.model_input_name.append(inp_name)
                     self.model_input_shape.append(lay.input_param.shape[0].dim)
                     self.onnxmodel.addInputsTVI(in_tvi)
-                    print("添加模型输入信息")
+                    print("添加模型输入信息, input_name=" + inp_name)
                 else:
                     layer_list.append(lay)
             return layer_list
@@ -74,11 +75,13 @@ class Caffe2Onnx():
             else:
                 raise RuntimeError("Input shape missing!")
 
-            in_tvi = helper.make_tensor_value_info("input", TensorProto.FLOAT, input_dim)
-            self.model_input_name.append("input")
-            self.model_input_shape.append(input_dim)
-            self.onnxmodel.addInputsTVI(in_tvi)
-            print("添加模型输入信息")
+            for inp in net.input:
+                inp_name = inp +"_input"
+                in_tvi = helper.make_tensor_value_info(inp_name, TensorProto.FLOAT, input_dim)
+                self.model_input_name.append(inp_name)
+                self.model_input_shape.append(input_dim)
+                self.onnxmodel.addInputsTVI(in_tvi)
+                print("添加模型输入信息, input_name=" + inp_name)
             return self._NetLayer
 
         #以上情况都不是,则该caffe模型没有输入,存在问题
@@ -168,29 +171,29 @@ class Caffe2Onnx():
         outshape = []
 
         # 如果结点列表为空，或者当前层的bottom在input_name中，那么上一层输入一定是 Input
-        if self.NodeList == []:
-            outname += self.model_input_name
-            outshape += self.model_input_shape
+        # if self.NodeList == []:
+            # outname += self.model_input_name
+            # outshape += self.model_input_shape
 
-        else:
-            for i in range(len(layer.bottom)):
-                for j in range(len(self.model_input_name)):
-                    if layer.bottom[i] + '_input' == self.model_input_name[j]:
-                        outname.append(self.model_input_name[j])
-                        outshape.append(self.model_input_shape[j])
+        for i in range(len(layer.bottom)):
+            # 先在 model input 中找
+            for j in range(len(self.model_input_name)):
+                if layer.bottom[i] + '_input' == self.model_input_name[j]:
+                    outname.append(self.model_input_name[j])
+                    outshape.append(self.model_input_shape[j])
 
-                # 因为prototxt中存在top和bottom同名的情况，但是layer.bottom只能对应一个node，所以对每个layer.bottom，找到最末的那个同名节点作为上一层节点
-                name = None
-                shape = None
-                for node in self.NodeList:
-                    for j in range(len(node.top) if node.node.op_type != "MaxPool" else 1):   # comment if statement for original maxpool and maxunpool
-                        if layer.bottom[i] == node.top[j]:
-                            name = node.outputs_name[j]
-                            shape = node.outputs_shape[j]
+            # 因为prototxt中存在top和bottom同名的情况，但是layer.bottom只能对应一个node，所以对每个layer.bottom，找到最末的那个同名节点作为上一层节点
+            name = None
+            shape = None
+            for node in self.NodeList:
+                for j in range(len(node.top) if node.node.op_type != "MaxPool" else 1):   # comment if statement for original maxpool and maxunpool
+                    if layer.bottom[i] == node.top[j]:
+                        name = node.outputs_name[j]
+                        shape = node.outputs_shape[j]
 
-                if name:
-                    outname.append(name)
-                    outshape.append(shape)
+            if name:
+                outname.append(name)
+                outshape.append(shape)
 
         try:
             assert outname, "Failed at layer %s, layer's bottom not detected ..."%(layer.name)
@@ -392,6 +395,8 @@ class Caffe2Onnx():
                 nodename = Layers[i].name
 
                 #2.构建Concat_node
+                # print(inname)
+                # print(input_shape)
                 Concat_node = op.createConcat(Layers[i], nodename, inname, outname, input_shape)
 
                 #3.添加节点到节点列表
@@ -506,6 +511,9 @@ class Caffe2Onnx():
             else:#构建中间节点信息
                 innernode = self.NodeList[i]
                 for k in range(len(innernode.outputs_shape)):
+                    # print("====================")
+                    # print(innernode.inputs_name)
+                    # print(innernode.outputs_name)
                     hid_out_tvi = helper.make_tensor_value_info(innernode.outputs_name[k], TensorProto.FLOAT,innernode.outputs_shape[k])
                     self.onnxmodel.addValueInfoTVI(hid_out_tvi)
         print("添加模型输出信息和模型中间输出信息")
